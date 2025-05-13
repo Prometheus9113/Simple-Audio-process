@@ -1,4 +1,3 @@
-import numpy as np
 from scipy.signal import firwin, lfilter
 
 class FIRFilter:
@@ -9,7 +8,7 @@ class FIRFilter:
         self.num_taps = 1024
         self.filter_coeffs = None
 
-    def design_filter(self, filter_type, cutoff):
+    def design_FIR_filter(self, filter_type, cutoff):
         """
         设计 FIR 滤波器。
         :param filter_type: 滤波器类型 ('lowpass', 'highpass', 'bandpass', 'bandstop', 'none')

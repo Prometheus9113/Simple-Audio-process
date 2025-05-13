@@ -88,7 +88,7 @@ class AudioProcessingApp:
                     messagebox.showerror("错误", "请输入有效的截止频率 (Hz)")
                     return
                 cutoff = float(cutoff)
-                self.fir_filter.design_filter(filter_type, cutoff)
+                self.fir_filter.design_FIR_filter(filter_type, cutoff)
             elif filter_type in ["bandpass", "bandstop"]:
                 # 检查两个截止频率输入
                 low_cutoff = self.low_cutoff_entry.get()
@@ -101,9 +101,9 @@ class AudioProcessingApp:
                 if low_cutoff <= 0 or high_cutoff <= 0 or low_cutoff >= high_cutoff:
                     messagebox.showerror("错误", "低截止频率必须小于高截止频率，且均为正值")
                     return
-                self.fir_filter.design_filter(filter_type, [low_cutoff, high_cutoff])
+                self.fir_filter.design_FIR_filter(filter_type, [low_cutoff, high_cutoff])
             else:
-                self.fir_filter.design_filter("none", None)
+                self.fir_filter.design_FIR_filter("none", None)
 
             # 动态更新滤波器应用到音频数据
             with self.audio_data_lock:
