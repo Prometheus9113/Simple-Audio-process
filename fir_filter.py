@@ -1,11 +1,13 @@
-from scipy.signal import firwin, lfilter ,iirfilter
+from scipy.signal import firwin, lfilter, iirfilter, sosfilt
 
-class FIRFilter:
-    def __init__(self, sample_rate):
+class Filter:
+    def __init__(self, sample_rate, type_of_filter):
+        self.type = type_of_filter
         self.sample_rate = sample_rate
         self.filter_type = "none"
         self.cutoff = None
-        self.num_taps = 1024
+        self.fir_num_taps = 1024
+        self.iir_num_taps = 17
         self.filter_coeffs = None
 
     def design_FIR_filter(self, filter_type, cutoff):
@@ -46,9 +48,9 @@ class FIRFilter:
             if normalized_cutoff <= 0 or normalized_cutoff >= 1:
                 raise ValueError("Normalized cutoff frequency must be between 0 and 1.")
 
-        self.filter_coeffs = firwin(self.num_taps+1, normalized_cutoff, pass_zero=pass_zero_self)
+        self.filter_coeffs = firwin(self.fir_num_taps+1, normalized_cutoff, pass_zero=pass_zero_self)
 
-    def apply_filter(self, audio_data):
+    def apply_fir_filter(self, audio_data):
         """
         应用 FIR 滤波器。
         :param audio_data: 输入音频数据（numpy 数组）
@@ -58,17 +60,10 @@ class FIRFilter:
             return audio_data
         return lfilter(self.filter_coeffs, 1.0, audio_data)
     
-class IIRFilter:
     """
     IIR 滤波器设计
     
     """
-    def __init__(self, sample_rate):
-        self.sample_rate = sample_rate
-        self.filter_type = "none"
-        self.cutoff = None
-        self.filter_coeffs = None
-        self.num_taps = 5
 
     def design_IIR_filter(self, filter_type, cutoff):
         """
@@ -97,14 +92,35 @@ class IIRFilter:
                 raise ValueError("Normalized cutoff frequency must be between 0 and 1.")
         pass
 
-        self.filter_coeffs = iirfilter(self.num_taps, normalized_cutoff, btype=filter_type, ftype='butter', fs=self.sample_rate)
+        self.filter_coeffs = iirfilter(self.iir_num_taps, cutoff ,rs=80, btype=filter_type, ftype='cheby2', output='sos',  fs=self.sample_rate)
 
-    def apply_filter(self, audio_data):
+    def apply_iir_filter(self, audio_data):
         """
         应用 IIR 滤波器。
         :param audio_data: 输入音频数据（numpy 数组）
         :return: 滤波后的音频数据
+
         """
         if self.filter_coeffs is None:
             return audio_data
-        return lfilter(self.filter_coeffs[0], self.filter_coeffs[1], audio_data)
+        return sosfilt(self.filter_coeffs, audio_data)
+    
+    def apply_current_filter(self, audio_data):
+        """
+        应用滤波器设置
+        :param audio_data: 输入音频数据（numpy 数组）
+        :return: 滤波后的音频数据
+
+        """
+        if self.filter_coeffs is None:
+            return audio_data
+        
+        # 根据使用的滤波器类型应用相应的滤波器
+
+        if self.type == "FIR":
+            return self.apply_fir_filter(audio_data)
+        elif self.type == "IIR":
+            return self.apply_iir_filter(audio_data)
+        else:
+            raise ValueError(f"Unsupported filter type: {self.type}")
+        

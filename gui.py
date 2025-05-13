@@ -1,19 +1,19 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from audio_io import read_audio, play_audio
-from fir_filter import FIRFilter, IIRFilter
+from fir_filter import Filter
 import threading
 import numpy as np
 
 class AudioProcessingApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("FIR 滤波器音频处理")
+        self.root.title("滤波器音频处理")
         self.file_path = None
         self.sample_rate = None
         self.audio_data = None
         self.filtered_audio = None
-        self.fir_filter = None
+        self.filter = None
         self.stop_event = threading.Event()  # 用于控制播放线程
         self.audio_data_lock = threading.Lock()  # 用于同步音频数据更新
         self.is_paused = True  # 标记当前是否暂停播放
@@ -22,6 +22,11 @@ class AudioProcessingApp:
 
         # 文件选择按钮
         tk.Button(root, text="选择音频文件", command=self.load_file).pack(pady=5)
+
+        # 决定使用 FIR 还是 IIR 滤波器
+        tk.Label(root, text="请选择滤波器的滤波器类型:").pack()
+        self.type_of_filter_button = tk.Button(root, text="FIR", command=self.switch_filter_type)
+        self.type_of_filter_button.pack()
 
         # 截止频率输入框
         self.cutoff_frame = tk.Frame(root)
@@ -57,7 +62,8 @@ class AudioProcessingApp:
             try:
                 self.sample_rate, self.audio_data, duration = read_audio(self.file_path)
                 self.filtered_audio = self.audio_data
-                self.fir_filter = FIRFilter(self.sample_rate)
+                # 匹配之前的的改动  默认使用FIR滤波器
+                self.filter = Filter(self.sample_rate, "FIR")
                 # 更新当前播放音频的标签
                 self.current_file_label.config(text=f"当前播放：{self.file_path.split('/')[-1]}")
                 messagebox.showinfo("成功", f"加载音频文件成功！时长: {duration:.2f} 秒")
@@ -75,12 +81,15 @@ class AudioProcessingApp:
         """
         动态应用滤波器到音频数据。
         """
-        if not self.fir_filter or self.audio_data is None:
+        if not self.filter or self.audio_data is None:
             messagebox.showerror("错误", "请先加载音频文件")
             return
 
         filter_type = self.filter_type.get()
         try:
+
+            # 低通和高通滤波器
+
             if filter_type in ["lowpass", "highpass"]:
                 # 检查单个截止频率输入
                 cutoff = self.low_cutoff_entry.get()
@@ -88,7 +97,13 @@ class AudioProcessingApp:
                     messagebox.showerror("错误", "请输入有效的截止频率 (Hz)")
                     return
                 cutoff = float(cutoff)
-                self.fir_filter.design_FIR_filter(filter_type, cutoff)
+                if self.filter.type == "FIR":
+                    self.filter.design_FIR_filter(filter_type, cutoff)
+                else:
+                    self.filter.design_IIR_filter(filter_type, cutoff)
+
+            # 带通和带阻滤波器
+
             elif filter_type in ["bandpass", "bandstop"]:
                 # 检查两个截止频率输入
                 low_cutoff = self.low_cutoff_entry.get()
@@ -101,13 +116,19 @@ class AudioProcessingApp:
                 if low_cutoff <= 0 or high_cutoff <= 0 or low_cutoff >= high_cutoff:
                     messagebox.showerror("错误", "低截止频率必须小于高截止频率，且均为正值")
                     return
-                self.fir_filter.design_FIR_filter(filter_type, [low_cutoff, high_cutoff])
+                if self.filter.type == "FIR":
+                    self.filter.design_FIR_filter(filter_type, [low_cutoff, high_cutoff])
+                else:
+                    self.filter.design_IIR_filter(filter_type, [low_cutoff, high_cutoff])
+
+            # 未应用滤波器设置
+
             else:
-                self.fir_filter.design_FIR_filter("none", None)
+                self.filter.filter_coeffs = None
 
             # 动态更新滤波器应用到音频数据
             with self.audio_data_lock:
-                self.filtered_audio = self.fir_filter.apply_filter(self.audio_data)
+                self.filtered_audio = self.filter.apply_current_filter(self.audio_data)
                 self.filtered_audio = np.clip(self.filtered_audio, -32768, 32767).astype(np.int16)
             messagebox.showinfo("成功", "滤波器设置已动态应用")
         except ValueError:
@@ -191,6 +212,21 @@ class AudioProcessingApp:
             self.high_cutoff_label.config(text="高截止频率 (Hz):")
             self.high_cutoff_label.grid(row=1, column=0)
             self.high_cutoff_entry.grid(row=1, column=1)
+
+    def switch_filter_type(self):
+        """
+        切换滤波器类型
+        """
+        if self.filter is None:
+            messagebox.showerror("错误", "请先加载音频文件")
+            return
+
+        if self.filter.type == "FIR":
+            self.filter.type = "IIR"
+            self.type_of_filter_button.config(text="IIR")
+        else:
+            self.filter.type = "FIR"
+            self.type_of_filter_button.config(text="FIR")
 
 if __name__ == "__main__":
     root = tk.Tk()
