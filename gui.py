@@ -4,6 +4,8 @@ from audio_io import read_audio, play_audio
 from fir_filter import Filter
 import threading
 import numpy as np
+import matplotlib.pyplot as plt
+from scipy.signal import sosfreqz, freqz
 
 class AudioProcessingApp:
     def __init__(self, root):
@@ -19,6 +21,7 @@ class AudioProcessingApp:
         self.is_paused = True  # 标记当前是否暂停播放
         self.play_thread = None  # 保存播放线程
         self.current_position = 0  # 当前播放位置（样本索引）
+        self.num = 1  # 自定义滤波器阶数
 
         # 文件选择按钮
         tk.Button(root, text="选择音频文件", command=self.load_file).pack(pady=5)
@@ -27,6 +30,19 @@ class AudioProcessingApp:
         tk.Label(root, text="请选择滤波器的滤波器类型:").pack()
         self.type_of_filter_button = tk.Button(root, text="FIR", command=self.switch_filter_type)
         self.type_of_filter_button.pack()
+
+        # 自定义滤波器阶数
+        tk.Label(root, text="输入滤波器阶数:").pack()
+        self.num_entry = tk.Entry(root)
+        self.num_entry.pack()
+  
+
+        # 绘制频响曲线
+        tk.Label(root, text="绘制频响曲线:").pack()
+        tk.Button(root, text="绘制频响曲线", command=self.plot_frequency_response).pack()
+
+        # 应用滤波器按钮
+        tk.Button(root, text="应用滤波器", command=self.apply_filter).pack(pady=5)
 
         # 截止频率输入框
         self.cutoff_frame = tk.Frame(root)
@@ -42,8 +58,6 @@ class AudioProcessingApp:
         self.filter_type.trace_add("write", self.update_cutoff_inputs)  # 动态更新输入框
         tk.OptionMenu(root, self.filter_type, "none", "lowpass", "highpass", "bandpass", "bandstop").pack()
 
-        # 应用滤波器按钮
-        tk.Button(root, text="应用滤波器", command=self.apply_filter).pack(pady=5)
 
         # 播放按钮
         self.play_button = tk.Button(root, text="播放", command=self.toggle_play_pause)
@@ -86,6 +100,7 @@ class AudioProcessingApp:
             return
 
         filter_type = self.filter_type.get()
+        self.num = int(self.num_entry.get())
         try:
 
             # 低通和高通滤波器
@@ -98,9 +113,9 @@ class AudioProcessingApp:
                     return
                 cutoff = float(cutoff)
                 if self.filter.type == "FIR":
-                    self.filter.design_FIR_filter(filter_type, cutoff)
+                    self.filter.design_FIR_filter(filter_type, cutoff, self.num)
                 else:
-                    self.filter.design_IIR_filter(filter_type, cutoff)
+                    self.filter.design_IIR_filter(filter_type, cutoff, self.num)
 
             # 带通和带阻滤波器
 
@@ -130,7 +145,7 @@ class AudioProcessingApp:
             with self.audio_data_lock:
                 self.filtered_audio = self.filter.apply_current_filter(self.audio_data)
                 self.filtered_audio = np.clip(self.filtered_audio, -32768, 32767).astype(np.int16)
-            messagebox.showinfo("成功", "滤波器设置已动态应用")
+            messagebox.showinfo("成功", "滤波器设置应用")
         except ValueError:
             messagebox.showerror("错误", "请输入有效的截止频率")
 
@@ -139,7 +154,7 @@ class AudioProcessingApp:
         切换播放和暂停状态。
         """
         if self.filtered_audio is None:
-            messagebox.showerror("错误", "请先加载音频文件并应用滤波器")
+            messagebox.showerror("错误", "请先加载音频文件")
             return
 
         if self.is_paused:
@@ -227,6 +242,32 @@ class AudioProcessingApp:
         else:
             self.filter.type = "FIR"
             self.type_of_filter_button.config(text="FIR")
+
+    def plot_frequency_response(self):
+        """
+        绘制滤波器的频率响应。
+        """
+        if self.filter is None or self.filter.filter_coeffs is None:
+            messagebox.showerror("错误", "请先加载音频文件并应用滤波器")
+            return
+        
+        # 绘制频响曲线
+        if self.filter.type == "FIR":
+            w, h = freqz(self.filter.filter_coeffs, worN=20000, fs=self.sample_rate)
+        else:
+            w, h = sosfreqz(self.filter.filter_coeffs, 20000, fs=self.sample_rate)
+        
+        fig = plt.figure()
+        ax = fig.add_subplot(1, 1, 1)
+        ax.plot(w, 20 * np.log10(np.maximum(abs(h), 1e-5)))
+        ax.set_title('Filter frequency response')
+        ax.set_xlabel('Frequency [Hz]')
+        ax.set_ylabel('Amplitude [dB]')
+        ax.axis((10, 20000, -100, 10))
+        ax.grid(which='both', axis='both')
+        plt.show()
+
+
 
 if __name__ == "__main__":
     root = tk.Tk()

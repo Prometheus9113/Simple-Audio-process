@@ -10,7 +10,7 @@ class Filter:
         self.iir_num_taps = 17
         self.filter_coeffs = None
 
-    def design_FIR_filter(self, filter_type, cutoff):
+    def design_FIR_filter(self, filter_type, cutoff, num_taps):
         """
         设计 FIR 滤波器。
         :param filter_type: 滤波器类型 ('lowpass', 'highpass', 'bandpass', 'bandstop', 'none')
@@ -22,7 +22,10 @@ class Filter:
         if filter_type == "none":
             self.filter_coeffs = None
             return
-
+        
+        if num_taps is not None:
+            self.fir_num_taps = num_taps
+            
         nyquist = self.sample_rate / 2
         if isinstance(cutoff, (list, tuple)):
             normalized_cutoff = [f / nyquist for f in cutoff]
@@ -65,7 +68,7 @@ class Filter:
     
     """
 
-    def design_IIR_filter(self, filter_type, cutoff):
+    def design_IIR_filter(self, filter_type, cutoff, num_taps):
         """
         设计 IIR 滤波器。
         :param filter_type: 滤波器类型 ('lowpass', 'highpass', 'bandpass', 'bandstop', 'none')
@@ -77,6 +80,9 @@ class Filter:
         if filter_type == "none":
             self.filter_coeffs = None
             return
+        
+        if num_taps is not None:
+            self.iir_num_taps = num_taps
 
         nyquist = self.sample_rate / 2
         if isinstance(cutoff, (list, tuple)):
@@ -92,7 +98,7 @@ class Filter:
                 raise ValueError("Normalized cutoff frequency must be between 0 and 1.")
         pass
 
-        self.filter_coeffs = iirfilter(self.iir_num_taps, cutoff ,rs=80, btype=filter_type, ftype='cheby2', output='sos',  fs=self.sample_rate)
+        self.filter_coeffs = iirfilter(self.iir_num_taps, cutoff ,rs=100, btype=filter_type, ftype='cheby2', output='sos',  fs=self.sample_rate)
 
     def apply_iir_filter(self, audio_data):
         """
