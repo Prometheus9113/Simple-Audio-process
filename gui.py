@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from audio_io import read_audio, play_audio
-from fir_filter import FIRFilter
+from fir_filter import FIRFilter, IIRFilter
 import threading
 import numpy as np
 

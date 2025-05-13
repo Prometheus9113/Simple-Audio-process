@@ -1,4 +1,4 @@
-from scipy.signal import firwin, lfilter
+from scipy.signal import firwin, lfilter ,iirfilter
 
 class FIRFilter:
     def __init__(self, sample_rate):
@@ -57,3 +57,54 @@ class FIRFilter:
         if self.filter_coeffs is None:
             return audio_data
         return lfilter(self.filter_coeffs, 1.0, audio_data)
+    
+class IIRFilter:
+    """
+    IIR 滤波器设计
+    
+    """
+    def __init__(self, sample_rate):
+        self.sample_rate = sample_rate
+        self.filter_type = "none"
+        self.cutoff = None
+        self.filter_coeffs = None
+        self.num_taps = 5
+
+    def design_IIR_filter(self, filter_type, cutoff):
+        """
+        设计 IIR 滤波器。
+        :param filter_type: 滤波器类型 ('lowpass', 'highpass', 'bandpass', 'bandstop', 'none')
+        :param cutoff: 截止频率（Hz），单值或范围
+        """
+        self.filter_type = filter_type
+        self.cutoff = cutoff
+
+        if filter_type == "none":
+            self.filter_coeffs = None
+            return
+
+        nyquist = self.sample_rate / 2
+        if isinstance(cutoff, (list, tuple)):
+            normalized_cutoff = [f / nyquist for f in cutoff]
+        else:
+            normalized_cutoff = cutoff / nyquist
+
+        if isinstance(normalized_cutoff, list):
+            if any(c <= 0 or c >= 1 for c in normalized_cutoff):
+                raise ValueError("Normalized cutoff frequencies must be between 0 and 1.")
+        else:
+            if normalized_cutoff <= 0 or normalized_cutoff >= 1:
+                raise ValueError("Normalized cutoff frequency must be between 0 and 1.")
+        pass
+
+        self.filter_coeffs = iirfilter(self.num_taps, normalized_cutoff, btype=filter_type, ftype='butter', fs=self.sample_rate)
+
+    def apply_filter(self, audio_data):
+        """
+        应用 IIR 滤波器。
+        :param audio_data: 输入音频数据（numpy 数组）
+        :return: 滤波后的音频数据
+        """
+        if self.filter_coeffs is None:
+            return audio_data
+        return lfilter(self.filter_coeffs[0], self.filter_coeffs[1], audio_data)
