@@ -1,4 +1,6 @@
 from scipy.signal import firwin, lfilter, iirfilter, sosfilt
+import numpy as np
+from numpy.fft import fft, ifft, fftfreq
 
 class Filter:
     def __init__(self, sample_rate, type_of_filter):
@@ -110,6 +112,62 @@ class Filter:
         if self.filter_coeffs is None:
             return audio_data
         return sosfilt(self.filter_coeffs, audio_data)
+    
+    def apply_fft_filter(self, filter_type, cutoff, audio_data):
+        """
+        使用FFT进行频域滤波
+        :param audio_data: 输入音频数据（numpy 数组）
+        :return: 滤波后的音频数据
+        """
+        self.cutoff = cutoff
+        self.filter_type = filter_type
+
+        if filter_type == "none":
+            self.filter_coeffs = None
+            return
+        
+        nyquist = self.sample_rate / 2
+
+        if isinstance(cutoff, (list, tuple)):
+            normalized_cutoff = [f / nyquist for f in cutoff]
+        else:
+            normalized_cutoff = cutoff / nyquist
+
+        if isinstance(normalized_cutoff, list):
+            if any(c <= 0 or c >= 1 for c in normalized_cutoff):
+                raise ValueError("Normalized cutoff frequencies must be between 0 and 1.")
+        else:
+            if normalized_cutoff <= 0 or normalized_cutoff >= 1:
+                raise ValueError("Normalized cutoff frequency must be between 0 and 1.")
+        pass
+
+        N = len(audio_data)
+        freq = fftfreq(N, 1/self.sample_rate)
+        audio_fft = fft(audio_data)
+
+        if filter_type == "lowpass":
+            mask = np.abs(freq) <= cutoff
+            audio_fft_filtered = audio_data * mask
+            return np.real(ifft(audio_fft_filtered))
+        
+        elif filter_type == "highpass":
+            mask = np.abs(freq) >= cutoff
+            audio_fft_filtered = audio_data * mask
+            return np.real(ifft(audio_fft_filtered))
+        
+        elif filter_type == "bandpass":
+            mask = np.abs(freq) >= min(cutoff) and np.abs(freq) <= max(cutoff)
+            audio_fft_filtered = audio_data * mask
+            return np.real(ifft(audio_fft_filtered))
+        
+        elif filter_type == "bandstop":
+            mask = np.abs(freq) >= max(cutoff) or np.abs(freq) <= min(cutoff)
+            audio_fft_filtered = audio_data * mask
+            return np.real(ifft(audio_fft_filtered))
+        
+        else:
+            return audio_data
+
     
     def apply_current_filter(self, audio_data):
         """
