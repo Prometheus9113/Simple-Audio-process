@@ -114,8 +114,10 @@ class AudioProcessingApp:
                 cutoff = float(cutoff)
                 if self.filter.type == "FIR":
                     self.filter.design_FIR_filter(filter_type, cutoff, self.num)
-                else:
+                elif self.filter.type == "IIR":
                     self.filter.design_IIR_filter(filter_type, cutoff, self.num)
+                elif self.filter.type == "FFT":
+                    self.filter.design_fft_filter(filter_type, cutoff)
 
             # 带通和带阻滤波器
 
@@ -132,9 +134,11 @@ class AudioProcessingApp:
                     messagebox.showerror("错误", "低截止频率必须小于高截止频率，且均为正值")
                     return
                 if self.filter.type == "FIR":
-                    self.filter.design_FIR_filter(filter_type, [low_cutoff, high_cutoff])
-                else:
-                    self.filter.design_IIR_filter(filter_type, [low_cutoff, high_cutoff])
+                    self.filter.design_FIR_filter(filter_type, [low_cutoff, high_cutoff], self.num)
+                elif self.filter.type == "IIR":
+                    self.filter.design_IIR_filter(filter_type, [low_cutoff, high_cutoff], self.num)
+                elif self.filter.type == "FFT":
+                    self.filter.design_fft_filter(filter_type, [low_cutoff, high_cutoff])
 
             # 未应用滤波器设置
 
@@ -239,6 +243,9 @@ class AudioProcessingApp:
         if self.filter.type == "FIR":
             self.filter.type = "IIR"
             self.type_of_filter_button.config(text="IIR")
+        elif self.filter.type == "IIR":
+            self.filter.type = "FFT"
+            self.type_of_filter_button.config(text="FFT")
         else:
             self.filter.type = "FIR"
             self.type_of_filter_button.config(text="FIR")
